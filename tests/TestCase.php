@@ -16,8 +16,8 @@ class TestCase extends OrchestraTestCase
 
     protected function defineEnvironment($app): void
     {
-        $app['config']->set('helpspace.api_key', 'test-api-key');
-        $app['config']->set('helpspace.client_id', 'test-client-id');
-        $app['config']->set('helpspace.base_url', 'https://api.helpspace.com');
+        $app['config']->set('helpspace.api_key', config('helpspace.api_key'));
+        $app['config']->set('helpspace.client_id', config('helpspace.client_id'));
+        $app['config']->set('helpspace.base_url',  config('helpspace.base_url'));
     }
 }
