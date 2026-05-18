@@ -118,7 +118,8 @@ class HelpSpaceClient
      *
      * @param  array<string, mixed>  $payload  Required: subject, channel (id/email), from_contact (email/name),
      *                                          message (body). Optional: status, assignee, team, tags,
-     *                                          custom_fields, skip_rules, skip_autoreply, skip_notifications
+     *                                          custom_fields, created_at, skip_rules, skip_autoreply,
+     *                                          skip_notifications, send_mail_to_recipients
      * @throws \InvalidArgumentException
      * @throws HelpSpaceApiException
      */
@@ -138,7 +139,8 @@ class HelpSpaceClient
     /**
      * Update an existing ticket.
      *
-     * @param  array<string, mixed>  $payload  Fields to update: status, assignee, team, tags, custom_fields, etc.
+     * @param  array<string, mixed>  $payload  Fields to update: subject, channel, from_contact, status,
+     *                                          assignee (nullable), team (nullable), tags, created_at
      * @throws HelpSpaceApiException
      */
     public function updateTicket(int $id, array $payload): Ticket

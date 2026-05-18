@@ -20,11 +20,24 @@ class ChannelsReport
      */
     public static function fromArray(array $data): self
     {
+        // API returns parallel arrays; zip them into per-day objects.
+        $labels = (array) ($data['labels'] ?? []);
+        $opened = (array) ($data['opened'] ?? []);
+        $closed = (array) ($data['closed'] ?? []);
+        $dailyCounts = [];
+        foreach ($labels as $i => $label) {
+            $dailyCounts[] = [
+                'date'   => $label,
+                'opened' => $opened[$i] ?? 0,
+                'closed' => $closed[$i] ?? 0,
+            ];
+        }
+
         return new self(
-            dailyCounts: (array) ($data['daily_counts'] ?? []),
+            dailyCounts: $dailyCounts,
             metrics: (array) ($data['metrics'] ?? []),
-            channels: (array) ($data['channels'] ?? []),
-            tags: (array) ($data['tags'] ?? []),
+            channels: (array) ($data['channel_usage'] ?? []),
+            tags: (array) ($data['tag_usage'] ?? []),
             topCustomers: (array) ($data['top_customers'] ?? []),
             raw: $data,
         );

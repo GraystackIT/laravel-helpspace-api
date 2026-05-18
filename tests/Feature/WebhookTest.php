@@ -16,6 +16,7 @@ it('returns WebhookConfig on getWebhook', function (): void {
     $mockClient = new MockClient([
         GetWebhookRequest::class => MockResponse::make([
             'webhooks' => [
+                'version'      => '1',
                 'enabled'      => true,
                 'url'          => 'https://myapp.example.com/webhooks/helpspace',
                 'secret'       => 'abc123secret',
@@ -36,7 +37,34 @@ it('returns WebhookConfig on getWebhook', function (): void {
         ->and($config->url)->toBe('https://myapp.example.com/webhooks/helpspace')
         ->and($config->secret)->toBe('abc123secret')
         ->and($config->headers)->toHaveCount(1)
-        ->and($config->failedCount)->toBe(0);
+        ->and($config->failedCount)->toBe(0)
+        ->and($config->version)->toBe('1');
+});
+
+it('parses WebhookConfig from data-wrapped response', function (): void {
+    $mockClient = new MockClient([
+        GetWebhookRequest::class => MockResponse::make([
+            'data' => [
+                'version'      => '2',
+                'enabled'      => true,
+                'url'          => 'https://myapp.example.com/webhooks/helpspace',
+                'secret'       => 'xyz',
+                'headers'      => [],
+                'trigger'      => [],
+                'failed_count' => 1,
+            ],
+        ], 200),
+    ]);
+
+    $connector = app(HelpSpaceConnector::class);
+    $connector->withMockClient($mockClient);
+
+    $config = (new HelpSpaceClient($connector))->getWebhook();
+
+    expect($config)->toBeInstanceOf(WebhookConfig::class)
+        ->and($config->enabled)->toBeTrue()
+        ->and($config->version)->toBe('2')
+        ->and($config->failedCount)->toBe(1);
 });
 
 it('returns updated WebhookConfig on updateWebhook', function (): void {

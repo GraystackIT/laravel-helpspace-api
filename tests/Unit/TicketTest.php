@@ -13,10 +13,13 @@ it('builds Ticket from full array', function (): void {
         'from_contact' => ['email' => 'alice@example.com', 'name' => 'Alice'],
         'assignee'     => ['id' => 'ag1', 'name' => 'Bob'],
         'team'         => ['id' => 'tm1', 'name' => 'Support'],
+        'creator'      => ['id' => 'cr1', 'name' => 'Admin'],
         'tags'         => ['billing', 'urgent'],
         'custom_fields' => ['priority_level' => 'high'],
         'created_at'   => '2024-01-01T00:00:00Z',
         'updated_at'   => '2024-01-02T00:00:00Z',
+        'last_contact' => '2024-01-03T00:00:00Z',
+        'deleted_at'   => null,
     ]);
 
     expect($ticket->id)->toBe(1)
@@ -30,10 +33,14 @@ it('builds Ticket from full array', function (): void {
         ->and($ticket->assigneeName)->toBe('Bob')
         ->and($ticket->teamId)->toBe('tm1')
         ->and($ticket->teamName)->toBe('Support')
+        ->and($ticket->creatorId)->toBe('cr1')
+        ->and($ticket->creatorName)->toBe('Admin')
         ->and($ticket->tags)->toBe(['billing', 'urgent'])
         ->and($ticket->customFields)->toBe(['priority_level' => 'high'])
         ->and($ticket->createdAt)->toBe('2024-01-01T00:00:00Z')
-        ->and($ticket->updatedAt)->toBe('2024-01-02T00:00:00Z');
+        ->and($ticket->updatedAt)->toBe('2024-01-02T00:00:00Z')
+        ->and($ticket->lastContact)->toBe('2024-01-03T00:00:00Z')
+        ->and($ticket->deletedAt)->toBeNull();
 });
 
 it('handles missing optional fields gracefully', function (): void {
@@ -49,9 +56,13 @@ it('handles missing optional fields gracefully', function (): void {
         ->and($ticket->contactEmail)->toBeNull()
         ->and($ticket->assigneeId)->toBeNull()
         ->and($ticket->teamId)->toBeNull()
+        ->and($ticket->creatorId)->toBeNull()
+        ->and($ticket->creatorName)->toBeNull()
         ->and($ticket->tags)->toBe([])
         ->and($ticket->customFields)->toBe([])
-        ->and($ticket->updatedAt)->toBeNull();
+        ->and($ticket->updatedAt)->toBeNull()
+        ->and($ticket->lastContact)->toBeNull()
+        ->and($ticket->deletedAt)->toBeNull();
 });
 
 it('serializes to array via toArray', function (): void {
@@ -68,6 +79,10 @@ it('serializes to array via toArray', function (): void {
     expect($arr)->toHaveKey('id')
         ->and($arr)->toHaveKey('subject')
         ->and($arr)->toHaveKey('status')
+        ->and($arr)->toHaveKey('creatorId')
+        ->and($arr)->toHaveKey('creatorName')
+        ->and($arr)->toHaveKey('lastContact')
+        ->and($arr)->toHaveKey('deletedAt')
         ->and($arr['id'])->toBe(3)
         ->and($arr['subject'])->toBe('Test');
 });

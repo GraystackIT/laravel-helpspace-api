@@ -18,10 +18,14 @@ class Ticket
         public readonly ?string $assigneeName,
         public readonly ?string $teamId,
         public readonly ?string $teamName,
+        public readonly ?string $creatorId,
+        public readonly ?string $creatorName,
         public readonly array $tags,
         public readonly array $customFields,
         public readonly string $createdAt,
         public readonly ?string $updatedAt,
+        public readonly ?string $lastContact,
+        public readonly ?string $deletedAt,
     ) {}
 
     /**
@@ -29,10 +33,11 @@ class Ticket
      */
     public static function fromArray(array $item): self
     {
-        $channel  = $item['channel']  ?? [];
+        $channel  = $item['channel']      ?? [];
         $contact  = $item['from_contact'] ?? [];
-        $assignee = $item['assignee'] ?? [];
-        $team     = $item['team']     ?? [];
+        $assignee = $item['assignee']     ?? [];
+        $team     = $item['team']         ?? [];
+        $creator  = $item['creator']      ?? [];
 
         return new self(
             id: (int) ($item['id'] ?? 0),
@@ -46,10 +51,14 @@ class Ticket
             assigneeName: isset($assignee['name']) ? (string) $assignee['name'] : null,
             teamId: isset($team['id']) ? (string) $team['id'] : null,
             teamName: isset($team['name']) ? (string) $team['name'] : null,
+            creatorId: isset($creator['id']) ? (string) $creator['id'] : null,
+            creatorName: isset($creator['name']) ? (string) $creator['name'] : null,
             tags: (array) ($item['tags'] ?? []),
             customFields: (array) ($item['custom_fields'] ?? []),
             createdAt: (string) ($item['created_at'] ?? ''),
             updatedAt: isset($item['updated_at']) ? (string) $item['updated_at'] : null,
+            lastContact: isset($item['last_contact']) ? (string) $item['last_contact'] : null,
+            deletedAt: isset($item['deleted_at']) ? (string) $item['deleted_at'] : null,
         );
     }
 
@@ -70,10 +79,14 @@ class Ticket
             'assigneeName' => $this->assigneeName,
             'teamId'       => $this->teamId,
             'teamName'     => $this->teamName,
+            'creatorId'    => $this->creatorId,
+            'creatorName'  => $this->creatorName,
             'tags'         => $this->tags,
             'customFields' => $this->customFields,
             'createdAt'    => $this->createdAt,
             'updatedAt'    => $this->updatedAt,
+            'lastContact'  => $this->lastContact,
+            'deletedAt'    => $this->deletedAt,
         ];
     }
 }

@@ -13,6 +13,7 @@ class WebhookConfig
         public readonly array $headers,
         public readonly array $trigger,
         public readonly int $failedCount,
+        public readonly ?string $version,
     ) {}
 
     /**
@@ -20,7 +21,7 @@ class WebhookConfig
      */
     public static function fromArray(array $data): self
     {
-        $webhook = $data['webhooks'] ?? $data;
+        $webhook = $data['webhooks'] ?? $data['data'] ?? $data;
 
         return new self(
             enabled: (bool) ($webhook['enabled'] ?? false),
@@ -29,6 +30,7 @@ class WebhookConfig
             headers: (array) ($webhook['headers'] ?? []),
             trigger: (array) ($webhook['trigger'] ?? []),
             failedCount: (int) ($webhook['failed_count'] ?? 0),
+            version: isset($webhook['version']) ? (string) $webhook['version'] : null,
         );
     }
 
@@ -44,6 +46,7 @@ class WebhookConfig
             'headers'     => $this->headers,
             'trigger'     => $this->trigger,
             'failedCount' => $this->failedCount,
+            'version'     => $this->version,
         ];
     }
 }

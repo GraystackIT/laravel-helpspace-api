@@ -15,15 +15,15 @@ use Saloon\Http\Faking\MockResponse;
 it('returns ChannelsReport on getChannelsReport', function (): void {
     $mockClient = new MockClient([
         ChannelsReportRequest::class => MockResponse::make([
-            'daily_counts' => [
-                ['date' => '2024-01-01', 'opened' => 5, 'closed' => 3],
+            'labels'        => ['2024-01-01', '2024-01-02'],
+            'opened'        => [5, 3],
+            'closed'        => [2, 4],
+            'metrics'       => [
+                ['name' => 'new', 'count' => 8, 'previous_count' => 6, 'percentageChange' => 33],
             ],
-            'metrics' => [
-                'new' => 5, 'closed' => 3, 'open' => 10, 'waiting' => 2, 'escalated' => 1,
-            ],
-            'channels'      => [['name' => 'Email', 'count' => 5]],
-            'tags'          => [['name' => 'billing', 'count' => 2]],
-            'top_customers' => [['email' => 'cust@example.com', 'count' => 3]],
+            'channel_usage' => ['series' => [5, 3], 'labels' => ['Email', 'Chat'], 'colors' => []],
+            'tag_usage'     => ['series' => [2], 'labels' => ['billing'], 'colors' => []],
+            'top_customers' => [['email' => 'cust@example.com', 'ticket_count' => 3]],
         ], 200),
     ]);
 
@@ -33,17 +33,17 @@ it('returns ChannelsReport on getChannelsReport', function (): void {
     $report = (new HelpSpaceClient($connector))->getChannelsReport('2024-01-01', '2024-01-31');
 
     expect($report)->toBeInstanceOf(ChannelsReport::class)
-        ->and($report->dailyCounts)->toHaveCount(1)
-        ->and($report->metrics['new'])->toBe(5)
-        ->and($report->channels)->toHaveCount(1)
-        ->and($report->tags)->toHaveCount(1)
+        ->and($report->dailyCounts)->toHaveCount(2)
+        ->and($report->dailyCounts[0])->toBe(['date' => '2024-01-01', 'opened' => 5, 'closed' => 2])
+        ->and($report->metrics)->toHaveCount(1)
         ->and($report->topCustomers)->toHaveCount(1);
 });
 
 it('passes date range to channels report request', function (): void {
     $mockClient = new MockClient([
         ChannelsReportRequest::class => MockResponse::make([
-            'daily_counts' => [], 'metrics' => [], 'channels' => [], 'tags' => [], 'top_customers' => [],
+            'labels' => [], 'opened' => [], 'closed' => [], 'metrics' => [],
+            'channel_usage' => [], 'tag_usage' => [], 'top_customers' => [],
         ], 200),
     ]);
 
@@ -70,14 +70,14 @@ it('throws InvalidArgumentException for empty dates on getChannelsReport', funct
 it('returns PerformanceReport on getPerformanceReport', function (): void {
     $mockClient = new MockClient([
         PerformanceReportRequest::class => MockResponse::make([
-            'daily_counts' => [
-                ['date' => '2024-02-01', 'opened' => 3, 'closed' => 2],
-            ],
-            'metrics' => [
-                'avg_resolution_time' => ['days' => 0, 'hours' => 4, 'minutes' => 30],
+            'labels'     => ['2024-02-01', '2024-02-02'],
+            'opened'     => [3, 2],
+            'closed'     => [2, 1],
+            'metrics'    => [
+                ['name' => 'avg_resolution_time', 'value' => ['days' => 0, 'hours' => 4, 'minutes' => 30]],
             ],
             'top_agents' => [
-                ['name' => 'Agent Smith', 'resolved' => 12],
+                ['name' => 'Agent Smith', 'ticket_count' => 12, 'percent' => 60],
             ],
         ], 200),
     ]);
@@ -88,7 +88,8 @@ it('returns PerformanceReport on getPerformanceReport', function (): void {
     $report = (new HelpSpaceClient($connector))->getPerformanceReport('2024-02-01', '2024-02-28');
 
     expect($report)->toBeInstanceOf(PerformanceReport::class)
-        ->and($report->dailyCounts)->toHaveCount(1)
+        ->and($report->dailyCounts)->toHaveCount(2)
+        ->and($report->dailyCounts[0])->toBe(['date' => '2024-02-01', 'opened' => 3, 'closed' => 2])
         ->and($report->topAgents)->toHaveCount(1)
         ->and($report->topAgents[0]['name'])->toBe('Agent Smith');
 });
@@ -96,7 +97,7 @@ it('returns PerformanceReport on getPerformanceReport', function (): void {
 it('passes date range to performance report request', function (): void {
     $mockClient = new MockClient([
         PerformanceReportRequest::class => MockResponse::make([
-            'daily_counts' => [], 'metrics' => [], 'top_agents' => [],
+            'labels' => [], 'opened' => [], 'closed' => [], 'metrics' => [], 'top_agents' => [],
         ], 200),
     ]);
 
