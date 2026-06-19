@@ -217,7 +217,7 @@ class HelpSpaceClient
     /**
      * Create a new message on a ticket.
      *
-     * @param  array<string, mixed>  $payload  Required: from_contact (email/name), body, subject.
+     * @param  array<string, mixed>  $payload  Required: subject (string), from_contact (email/name), body (HTML).
      *                                          Optional: type, to, cc, bcc, attachments (base64),
      *                                          inline_images, skip_notifications, send_mail_to_recipients
      * @throws \InvalidArgumentException
@@ -225,6 +225,10 @@ class HelpSpaceClient
      */
     public function createMessage(int $ticketId, array $payload): Message
     {
+        if (empty($payload['subject'])) {
+            throw new \InvalidArgumentException('Message subject must not be empty.');
+        }
+
         if (empty($payload['body'])) {
             throw new \InvalidArgumentException('Message body must not be empty.');
         }

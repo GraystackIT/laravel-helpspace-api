@@ -7,6 +7,7 @@ use GraystackIT\HelpSpace\Data\Message;
 it('builds Message from full array', function (): void {
     $message = Message::fromArray([
         'id'           => 10,
+        'subject'      => 'Re: your request',
         'type'         => 'external',
         'from_contact' => ['email' => 'user@example.com', 'name' => 'User'],
         'to'           => ['agent@example.com'],
@@ -19,6 +20,7 @@ it('builds Message from full array', function (): void {
     ]);
 
     expect($message->id)->toBe(10)
+        ->and($message->subject)->toBe('Re: your request')
         ->and($message->type)->toBe('external')
         ->and($message->fromContactEmail)->toBe('user@example.com')
         ->and($message->fromContactName)->toBe('User')
@@ -38,7 +40,8 @@ it('handles missing optional fields gracefully', function (): void {
         'created_at' => '2024-03-01T00:00:00Z',
     ]);
 
-    expect($message->fromContactEmail)->toBe('')
+    expect($message->subject)->toBe('')
+        ->and($message->fromContactEmail)->toBe('')
         ->and($message->fromContactName)->toBe('')
         ->and($message->to)->toBe([])
         ->and($message->cc)->toBe([])
@@ -69,6 +72,7 @@ it('serializes to array via toArray', function (): void {
     $arr = $message->toArray();
 
     expect($arr)->toHaveKey('id')
+        ->and($arr)->toHaveKey('subject')
         ->and($arr)->toHaveKey('type')
         ->and($arr)->toHaveKey('body')
         ->and($arr['id'])->toBe(40)

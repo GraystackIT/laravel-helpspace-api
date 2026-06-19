@@ -18,6 +18,7 @@ it('returns Message array on listMessages', function (): void {
             'data' => [
                 [
                     'id'           => 1,
+                    'subject'      => 'Help request',
                     'type'         => 'external',
                     'from_contact' => ['email' => 'user@example.com', 'name' => 'John'],
                     'to'           => ['support@example.com'],
@@ -40,6 +41,7 @@ it('returns Message array on listMessages', function (): void {
     expect($messages)->toHaveCount(1)
         ->and($messages[0])->toBeInstanceOf(Message::class)
         ->and($messages[0]->id)->toBe(1)
+        ->and($messages[0]->subject)->toBe('Help request')
         ->and($messages[0]->type)->toBe('external')
         ->and($messages[0]->fromContactEmail)->toBe('user@example.com')
         ->and($messages[0]->fromContactName)->toBe('John')
@@ -147,7 +149,14 @@ it('returns Message on createMessage', function (): void {
 it('throws InvalidArgumentException for empty body on createMessage', function (): void {
     $client = new HelpSpaceClient(app(HelpSpaceConnector::class));
 
-    expect(fn () => $client->createMessage(101, ['body' => '']))
+    expect(fn () => $client->createMessage(101, ['subject' => 'Re: ticket', 'body' => '']))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+it('throws InvalidArgumentException for empty subject on createMessage', function (): void {
+    $client = new HelpSpaceClient(app(HelpSpaceConnector::class));
+
+    expect(fn () => $client->createMessage(101, ['subject' => '', 'body' => '<p>Hello</p>']))
         ->toThrow(\InvalidArgumentException::class);
 });
 

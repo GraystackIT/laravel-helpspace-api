@@ -8,6 +8,7 @@ class Message
 {
     public function __construct(
         public readonly int $id,
+        public readonly string $subject,
         public readonly string $type,
         public readonly string $fromContactEmail,
         public readonly string $fromContactName,
@@ -29,6 +30,7 @@ class Message
 
         return new self(
             id: (int) ($item['id'] ?? 0),
+            subject: (string) ($item['subject'] ?? ''),
             type: (string) ($item['type'] ?? 'external'),
             fromContactEmail: (string) ($from['email'] ?? ''),
             fromContactName: (string) ($from['name'] ?? ''),
@@ -49,6 +51,7 @@ class Message
     {
         return [
             'id'               => $this->id,
+            'subject'          => $this->subject,
             'type'             => $this->type,
             'fromContactEmail' => $this->fromContactEmail,
             'fromContactName'  => $this->fromContactName,

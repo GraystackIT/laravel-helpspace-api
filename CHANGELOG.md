@@ -5,6 +5,12 @@ All notable changes to `graystackit/laravel-helpspace-api` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-19
+
+### Fixed
+- `Message` DTO now maps the `subject` field returned by the HelpSpace API; previously it was silently dropped from all `listMessages()` and `getMessage()` responses
+- `createMessage()` now validates that `subject` is non-empty before sending the request, consistent with the API requirement and the existing `body` guard
+
 ## [1.0.0] - 2026-04-17
 
 ### Added
