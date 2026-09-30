@@ -9,7 +9,7 @@ it('builds Message from full array', function (): void {
         'id'           => 10,
         'subject'      => 'Re: your request',
         'type'         => 'external',
-        'from_contact' => ['email' => 'user@example.com', 'name' => 'User'],
+        'from_contact' => ['value' => 'user@example.com', 'name' => 'User'],
         'to'           => ['agent@example.com'],
         'cc'           => ['cc@example.com'],
         'bcc'          => [],
@@ -48,6 +48,18 @@ it('handles missing optional fields gracefully', function (): void {
         ->and($message->bcc)->toBe([])
         ->and($message->attachments)->toBe([])
         ->and($message->inlineImages)->toBe([]);
+});
+
+it('reads from_contact address from value (the real API field), falling back to email', function (): void {
+    $message = Message::fromArray([
+        'id'           => 25,
+        'type'         => 'external',
+        'from_contact' => ['email' => 'legacy@example.com', 'name' => 'Legacy'],
+        'body'         => '<p>Legacy field.</p>',
+        'created_at'   => '2024-03-15T00:00:00Z',
+    ]);
+
+    expect($message->fromContactEmail)->toBe('legacy@example.com');
 });
 
 it('defaults type to external when absent', function (): void {

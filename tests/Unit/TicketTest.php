@@ -9,8 +9,8 @@ it('builds Ticket from full array', function (): void {
         'id'           => 1,
         'subject'      => 'Login error',
         'status'       => 'open',
-        'channel'      => ['id' => 'ch1', 'email' => 'support@acme.com'],
-        'from_contact' => ['email' => 'alice@example.com', 'name' => 'Alice'],
+        'channel'      => ['id' => 'ch1', 'value' => 'support@acme.com'],
+        'from_contact' => ['value' => 'alice@example.com', 'name' => 'Alice'],
         'assignee'     => ['id' => 'ag1', 'name' => 'Bob'],
         'team'         => ['id' => 'tm1', 'name' => 'Support'],
         'creator'      => ['id' => 'cr1', 'name' => 'Admin'],
@@ -70,7 +70,7 @@ it('serializes to array via toArray', function (): void {
         'id'           => 3,
         'subject'      => 'Test',
         'status'       => 'closed',
-        'from_contact' => ['email' => 'x@y.com', 'name' => 'X'],
+        'from_contact' => ['value' => 'x@y.com', 'name' => 'X'],
         'created_at'   => '2024-06-01T00:00:00Z',
     ]);
 
@@ -85,6 +85,32 @@ it('serializes to array via toArray', function (): void {
         ->and($arr)->toHaveKey('deletedAt')
         ->and($arr['id'])->toBe(3)
         ->and($arr['subject'])->toBe('Test');
+});
+
+it('reads channel/contact address from value (the real API field), falling back to email', function (): void {
+    $ticket = Ticket::fromArray([
+        'id'           => 4,
+        'subject'      => 'Value field',
+        'status'       => 'open',
+        'channel'      => ['id' => 'ch1', 'value' => 'support@acme.com'],
+        'from_contact' => ['value' => 'alice@example.com', 'name' => 'Alice'],
+        'created_at'   => '2024-01-01T00:00:00Z',
+    ]);
+
+    expect($ticket->channelEmail)->toBe('support@acme.com')
+        ->and($ticket->contactEmail)->toBe('alice@example.com');
+
+    $legacy = Ticket::fromArray([
+        'id'           => 5,
+        'subject'      => 'Legacy email field',
+        'status'       => 'open',
+        'channel'      => ['id' => 'ch1', 'email' => 'legacy-support@acme.com'],
+        'from_contact' => ['email' => 'legacy-alice@example.com', 'name' => 'Alice'],
+        'created_at'   => '2024-01-01T00:00:00Z',
+    ]);
+
+    expect($legacy->channelEmail)->toBe('legacy-support@acme.com')
+        ->and($legacy->contactEmail)->toBe('legacy-alice@example.com');
 });
 
 it('casts id to int', function (): void {

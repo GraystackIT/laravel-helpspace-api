@@ -20,7 +20,7 @@ it('returns Message array on listMessages', function (): void {
                     'id'           => 1,
                     'subject'      => 'Help request',
                     'type'         => 'external',
-                    'from_contact' => ['email' => 'user@example.com', 'name' => 'John'],
+                    'from_contact' => ['value' => 'user@example.com', 'name' => 'John'],
                     'to'           => ['support@example.com'],
                     'cc'           => [],
                     'bcc'          => [],

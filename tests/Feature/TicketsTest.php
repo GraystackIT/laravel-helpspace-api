@@ -26,8 +26,8 @@ it('returns paginated Ticket array on listTickets', function (): void {
                     'id'           => 101,
                     'subject'      => 'Cannot login',
                     'status'       => 'open',
-                    'channel'      => ['id' => 'ch1', 'email' => 'support@example.com'],
-                    'from_contact' => ['email' => 'user@example.com', 'name' => 'John Doe'],
+                    'channel'      => ['id' => 'ch1', 'value' => 'support@example.com'],
+                    'from_contact' => ['value' => 'user@example.com', 'name' => 'John Doe'],
                     'assignee'     => ['id' => 'a1', 'name' => 'Agent Smith'],
                     'team'         => ['id' => 't1', 'name' => 'Tier 1'],
                     'tags'         => ['billing'],
@@ -113,6 +113,25 @@ it('passes status filter to listTickets request', function (): void {
     expect($query['status'])->toBe(['open', 'escalated']);
 });
 
+it('sends created-at-between (not created-between) for the date filter', function (): void {
+    $mockClient = new MockClient([
+        ListTicketsRequest::class => MockResponse::make(['data' => [], 'meta' => [], 'links' => []], 200),
+    ]);
+
+    $connector = app(HelpSpaceConnector::class);
+    $connector->withMockClient($mockClient);
+
+    (new HelpSpaceClient($connector))->listTickets(createdBetween: '2024-01-01/2024-01-31');
+
+    $lastRequest = $mockClient->getLastRequest();
+    $reflection  = new ReflectionMethod($lastRequest, 'defaultQuery');
+    $query       = $reflection->invoke($lastRequest);
+
+    expect($query)->toHaveKey('created-at-between')
+        ->and($query['created-at-between'])->toBe('2024-01-01/2024-01-31')
+        ->and($query)->not->toHaveKey('created-between');
+});
+
 it('returns a Ticket on getTicket', function (): void {
     $mockClient = new MockClient([
         GetTicketRequest::class => MockResponse::make([
@@ -120,8 +139,8 @@ it('returns a Ticket on getTicket', function (): void {
                 'id'           => 42,
                 'subject'      => 'Billing issue',
                 'status'       => 'closed',
-                'channel'      => ['id' => 'ch2', 'email' => 'billing@example.com'],
-                'from_contact' => ['email' => 'jane@example.com', 'name' => 'Jane Doe'],
+                'channel'      => ['id' => 'ch2', 'value' => 'billing@example.com'],
+                'from_contact' => ['value' => 'jane@example.com', 'name' => 'Jane Doe'],
                 'created_at'   => '2024-02-01T08:00:00Z',
             ],
         ], 200),
@@ -145,8 +164,8 @@ it('returns a Ticket on createTicket', function (): void {
                 'id'           => 99,
                 'subject'      => 'New request',
                 'status'       => 'unassigned',
-                'channel'      => ['id' => 'ch1', 'email' => 'support@example.com'],
-                'from_contact' => ['email' => 'new@example.com', 'name' => 'New User'],
+                'channel'      => ['id' => 'ch1', 'value' => 'support@example.com'],
+                'from_contact' => ['value' => 'new@example.com', 'name' => 'New User'],
                 'created_at'   => '2024-03-01T09:00:00Z',
             ],
         ], 201),
@@ -181,7 +200,7 @@ it('returns updated Ticket on updateTicket', function (): void {
                 'id'           => 55,
                 'subject'      => 'Updated subject',
                 'status'       => 'waiting',
-                'from_contact' => ['email' => 'u@example.com', 'name' => 'User'],
+                'from_contact' => ['value' => 'u@example.com', 'name' => 'User'],
                 'created_at'   => '2024-01-01T00:00:00Z',
             ],
         ], 200),

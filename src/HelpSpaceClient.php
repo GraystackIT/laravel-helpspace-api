@@ -117,9 +117,10 @@ class HelpSpaceClient
      * Create a new ticket.
      *
      * @param  array<string, mixed>  $payload  Required: subject, channel (id/email), from_contact (email/name),
-     *                                          message (body). Optional: status, assignee, team, tags,
-     *                                          custom_fields, created_at, skip_rules, skip_autoreply,
-     *                                          skip_notifications, send_mail_to_recipients
+     *                                          message (from_contact, body, cc, bcc, attachments).
+     *                                          Optional: status, assignee, team, tags, custom_fields,
+     *                                          created_at, skip_rules, skip_autoreply, skip_notifications,
+     *                                          send_mail_to_recipients
      * @throws \InvalidArgumentException
      * @throws HelpSpaceApiException
      */
@@ -220,6 +221,13 @@ class HelpSpaceClient
      * @param  array<string, mixed>  $payload  Required: subject (string), from_contact (email/name), body (HTML).
      *                                          Optional: type, to, cc, bcc, attachments (base64),
      *                                          inline_images, skip_notifications, send_mail_to_recipients
+     *
+     * NEEDS VERIFICATION (2026-09-30): HelpSpace's own Create/Get Message doc examples
+     * (both complete, non-truncated) show no `subject` field anywhere in the message
+     * request or response schema — only tickets appear to carry a subject. This
+     * client-side required-subject check may be rejecting otherwise-valid calls.
+     * Left unchanged pending a live API confirmation either way.
+     *
      * @throws \InvalidArgumentException
      * @throws HelpSpaceApiException
      */

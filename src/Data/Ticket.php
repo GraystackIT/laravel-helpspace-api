@@ -29,7 +29,9 @@ class Ticket
     ) {}
 
     /**
-     * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>  $item  HelpSpace's actual `channel`/`from_contact` objects carry the
+     *                                        address under `value` (not `email`); `email` is kept as a
+     *                                        fallback only in case an older API version returns it.
      */
     public static function fromArray(array $item): self
     {
@@ -44,8 +46,8 @@ class Ticket
             subject: (string) ($item['subject'] ?? ''),
             status: (string) ($item['status'] ?? ''),
             channelId: isset($channel['id']) ? (string) $channel['id'] : null,
-            channelEmail: isset($channel['email']) ? (string) $channel['email'] : null,
-            contactEmail: isset($contact['email']) ? (string) $contact['email'] : null,
+            channelEmail: isset($channel['value']) ? (string) $channel['value'] : (isset($channel['email']) ? (string) $channel['email'] : null),
+            contactEmail: isset($contact['value']) ? (string) $contact['value'] : (isset($contact['email']) ? (string) $contact['email'] : null),
             contactName: isset($contact['name']) ? (string) $contact['name'] : null,
             assigneeId: isset($assignee['id']) ? (string) $assignee['id'] : null,
             assigneeName: isset($assignee['name']) ? (string) $assignee['name'] : null,

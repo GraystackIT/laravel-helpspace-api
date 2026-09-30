@@ -74,7 +74,7 @@ class ListTicketsRequest extends Request
         }
 
         if ($this->createdBetween !== null) {
-            $query['created-between'] = $this->createdBetween;
+            $query['created-at-between'] = $this->createdBetween;
         }
 
         if ($this->lastContactBetween !== null) {

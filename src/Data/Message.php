@@ -22,7 +22,9 @@ class Message
     ) {}
 
     /**
-     * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>  $item  HelpSpace's actual `from_contact` object carries the address
+     *                                        under `value` (not `email`); `email` is kept as a fallback
+     *                                        only in case an older API version returns it.
      */
     public static function fromArray(array $item): self
     {
@@ -32,7 +34,7 @@ class Message
             id: (int) ($item['id'] ?? 0),
             subject: (string) ($item['subject'] ?? ''),
             type: (string) ($item['type'] ?? 'external'),
-            fromContactEmail: (string) ($from['email'] ?? ''),
+            fromContactEmail: (string) ($from['value'] ?? $from['email'] ?? ''),
             fromContactName: (string) ($from['name'] ?? ''),
             to: (array) ($item['to'] ?? []),
             cc: (array) ($item['cc'] ?? []),

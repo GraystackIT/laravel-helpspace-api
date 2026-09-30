@@ -126,6 +126,18 @@ $result['links'];  // ['next' => '...', 'prev' => null, ...]
 | `Waiting`     | `waiting`     |
 | `Closed`      | `closed`      |
 
+> ⚠️ **Unverified:** this enum is not currently wired into `Ticket::$status` (it's a plain
+> `string`), and HelpSpace's own docs disagree with themselves on these values — the
+> ticket-object/create/update field tables list `open escaleted waiting closed spam` (no
+> `unassigned`, and spelled "escaleted"), while the filter query-parameter table lists
+> `unassigned open escalated spam waiting closed` (correct spelling, includes `unassigned`).
+> This enum matches the filter table. Confirm against a real ticket's `status` value before
+> ever parsing `Ticket::$status` into this enum.
+
+> `channelEmail`/`contactEmail` are read from HelpSpace's `value` field on the `channel`/
+> `from_contact` objects (confirmed via the API's own example response), with `email` kept
+> only as a fallback.
+
 ### Get a ticket
 
 ```php
@@ -139,11 +151,18 @@ $ticket = $this->helpspace->createTicket([
     'subject'      => 'Cannot access my account',
     'channel'      => ['id' => 'channel-uuid'],
     'from_contact' => ['email' => 'user@example.com', 'name' => 'John Doe'],
-    'message'      => ['body' => '<p>I cannot log in since yesterday.</p>'],
+    'message'      => [
+        'body' => '<p>I cannot log in since yesterday.</p>',
+        // Optional, also accepted by the API on the nested message object:
+        // 'from_contact' => ['email' => 'agent@example.com'],
+        // 'cc'  => ['other@example.com'],
+        // 'bcc' => ['internal@example.com'],
+    ],
     'tags'         => ['access', 'urgent'],
     // Optional:
     'skip_autoreply'      => false,
     'skip_notifications'  => false,
+    // custom_fields is only saved if included in your HelpSpace subscription plan.
 ]);
 ```
 
@@ -209,6 +228,15 @@ foreach ($messages as $message) {
 | `Event`     | `event`      | No  |
 | `AiSummary` | `ai-summary` | No  |
 
+> `fromContactEmail` is read from HelpSpace's `value` field on the `from_contact` response
+> object (same convention as `Ticket::$contactEmail`), with `email` kept only as a fallback.
+
+> ⚠️ **Needs verification:** HelpSpace's own Create/Get Message documentation examples show
+> no `subject` field anywhere in the message request or response schema — only tickets appear
+> to carry one. `createMessage()` still requires a non-empty `subject` client-side; this is
+> left unchanged pending live-API confirmation, since removing it could be either a genuine
+> fix or a regression.
+
 ### Get a message
 
 ```php
@@ -231,7 +259,7 @@ $message = $this->helpspace->createMessage(101, [
     'send_mail_to_recipients' => true,
     // Attachments as base64 (max 5 MB combined)
     'attachments' => [
-        ['file_name' => 'guide.pdf', 'mime_type' => 'application/pdf', 'data' => base64_encode($pdfBytes)],
+        ['name' => 'guide.pdf', 'mime_type' => 'application/pdf', 'data' => base64_encode($pdfBytes)],
     ],
 ]);
 ```
@@ -254,6 +282,10 @@ print_r($report->tags);         // ticket volume by tag
 print_r($report->topCustomers); // customers with most tickets
 print_r($report->raw);          // full raw API response
 ```
+
+> Unlike Tickets/Messages/Webhook, HelpSpace's Reports responses are **not** wrapped in a
+> `data` key — the fields above are read directly off the top-level response object. This is
+> confirmed correct as-is, not a gap.
 
 ### Performance report
 
