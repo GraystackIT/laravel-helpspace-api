@@ -251,3 +251,89 @@ it('throws HelpSpaceApiException on 401 for getTicket', function (): void {
     expect(fn () => (new HelpSpaceClient($connector))->getTicket(1))
         ->toThrow(HelpSpaceApiException::class);
 });
+
+// ─── Pagination and error details (1.1.0) ──────────────────────────────────
+
+/**
+ * The query a listTickets() call sent, run against an empty mocked page.
+ *
+ * @param  array<string, mixed>  $arguments
+ * @return array<string, mixed>
+ */
+function listTicketsQuery(array $arguments): array
+{
+    $mockClient = new MockClient([
+        ListTicketsRequest::class => MockResponse::make(['data' => [], 'meta' => [], 'links' => []], 200),
+    ]);
+
+    $connector = app(HelpSpaceConnector::class);
+    $connector->withMockClient($mockClient);
+
+    (new HelpSpaceClient($connector))->listTickets(...$arguments);
+
+    return (new ReflectionMethod($mockClient->getLastRequest(), 'defaultQuery'))->invoke($mockClient->getLastRequest());
+}
+
+it('requests a later page of tickets', function (): void {
+    expect(listTicketsQuery(['page' => 3])['page'])->toBe(3);
+});
+
+it('leaves the page out for the first page', function (): void {
+    expect(listTicketsQuery([]))->not->toHaveKey('page');
+});
+
+it('keeps per-page at 1 or more', function (): void {
+    expect(listTicketsQuery(['perPage' => 0])['per-page'])->toBe(1);
+});
+
+it('carries the validation errors of a 422', function (): void {
+    $mockClient = new MockClient([
+        CreateTicketRequest::class => MockResponse::make([
+            'message' => 'The given data was invalid.',
+            'errors'  => ['from_contact.email' => ['The email must be a valid email address.']],
+        ], 422, ['X-RateLimit-Limit' => '30', 'X-RateLimit-Remaining' => '27']),
+    ]);
+
+    $connector = app(HelpSpaceConnector::class);
+    $connector->withMockClient($mockClient);
+
+    try {
+        (new HelpSpaceClient($connector))->createTicket(['subject' => 'Hi']);
+        $this->fail('No exception was thrown.');
+    } catch (HelpSpaceApiException $e) {
+        expect($e->getCode())->toBe(422)
+            ->and($e->getMessage())->toBe('HelpSpace API returned HTTP 422')
+            ->and($e->isValidationError())->toBeTrue()
+            ->and($e->apiMessage)->toBe('The given data was invalid.')
+            ->and($e->validationErrors)->toBe(['from_contact.email' => ['The email must be a valid email address.']])
+            ->and($e->rateLimitLimit)->toBe(30)
+            ->and($e->rateLimitRemaining)->toBe(27);
+    }
+});
+
+it('reports a 429 as rate limited', function (): void {
+    $mockClient = new MockClient([
+        GetTicketRequest::class => MockResponse::make(['message' => 'Too Many Attempts.'], 429, ['X-RateLimit-Limit' => '30', 'X-RateLimit-Remaining' => '0']),
+    ]);
+
+    $connector = app(HelpSpaceConnector::class);
+    $connector->withMockClient($mockClient);
+
+    try {
+        (new HelpSpaceClient($connector))->getTicket(1);
+        $this->fail('No exception was thrown.');
+    } catch (HelpSpaceApiException $e) {
+        expect($e->isRateLimited())->toBeTrue()
+            ->and($e->rateLimitRemaining)->toBe(0)
+            ->and($e->validationErrors)->toBe([]);
+    }
+});
+
+it('still builds the exception the way callers construct it directly', function (): void {
+    $e = new HelpSpaceApiException('failed', 500);
+
+    expect($e->apiMessage)->toBeNull()
+        ->and($e->validationErrors)->toBe([])
+        ->and($e->rateLimitLimit)->toBeNull()
+        ->and($e->isRateLimited())->toBeFalse();
+});

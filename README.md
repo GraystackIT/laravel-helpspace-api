@@ -87,22 +87,33 @@ foreach ($result['data'] as $ticket) {
     echo $ticket->status;       // string (open|closed|waiting|escalated|spam|unassigned)
     echo $ticket->contactEmail; // string|null
     echo $ticket->contactName;  // string|null
-    echo $ticket->assigneeName; // string|null
+    echo $ticket->contactId;    // string|null — also contactUserId
+    echo $ticket->channelName;  // string|null — also channelType, e.g. "email"
+    echo $ticket->assigneeName; // string|null — also assigneeEmail
     echo $ticket->teamName;     // string|null
+    echo $ticket->creatorEmail; // string|null
     print_r($ticket->tags);     // array
     echo $ticket->createdAt;    // ISO 8601 string
 }
 
 // Pagination metadata
-$result['meta'];   // ['current_page' => 1, 'total' => 120, ...]
+$result['meta'];   // ['current_page' => 1, 'last_page' => 3, 'total' => 120, ...]
 $result['links'];  // ['next' => '...', 'prev' => null, ...]
+
+// Walk every page
+$page = 1;
+do {
+    $result = $this->helpspace->listTickets(perPage: 50, page: $page);
+    // ... handle $result['data']
+    $page++;
+} while ($page <= ($result['meta']['last_page'] ?? 1));
 ```
 
 #### `listTickets()` parameters
 
 | Parameter            | Type       | Default | Description                                          |
 |---|---|---|---|
-| `$perPage`           | `int`      | `20` (max 50) | Results per page                              |
+| `$perPage`           | `int`      | `20` (1–50) | Results per page                                |
 | `$statuses`          | `string[]` | `[]`    | Filter by status values                              |
 | `$contacts`          | `string[]` | `[]`    | Filter by contact email                              |
 | `$assignees`         | `string[]` | `[]`    | Filter by assignee name or ID                        |
@@ -114,6 +125,7 @@ $result['links'];  // ['next' => '...', 'prev' => null, ...]
 | `$teams`             | `string[]` | `[]`    | Filter by team                                       |
 | `$createdBetween`    | `string\|null` | `null` | Date range `YYYY-MM-DD/YYYY-MM-DD`              |
 | `$lastContactBetween`| `string\|null` | `null` | Date range `YYYY-MM-DD/YYYY-MM-DD`              |
+| `$page`              | `int`      | `1`     | Page to fetch; `meta.last_page` is the last one      |
 
 **`TicketStatus` enum values:**
 
@@ -193,8 +205,21 @@ $this->helpspace->deleteTicket(101); // returns true
 
 Default types returned: `external`, `widget`, `forward`.
 
+`listMessages()` returns the **first page** of a ticket's messages as a plain array. The
+collection is paginated, so for a long thread use `listMessagesPage()`, which takes a page
+and returns the same `data`/`meta`/`links` shape as `listTickets()`:
+
 ```php
-// Default message types
+$page = 1;
+do {
+    $result = $this->helpspace->listMessagesPage(101, page: $page, additionalTypes: ['internal']);
+    // ... handle $result['data'] (Message[])
+    $page++;
+} while ($page <= ($result['meta']['last_page'] ?? 1));
+```
+
+```php
+// Default message types (first page)
 $messages = $this->helpspace->listMessages(101);
 
 // Include internal notes as well
@@ -208,6 +233,8 @@ foreach ($messages as $message) {
     echo $message->type;             // external|internal|forward|widget|...
     echo $message->fromContactEmail; // string
     echo $message->fromContactName;  // string
+    echo $message->fromContactId;    // string|null — also fromContactUserId
+    echo $message->draft;            // bool — stored as a draft, not sent
     echo $message->body;             // HTML string
     echo $message->createdAt;        // ISO 8601 string
     print_r($message->attachments);  // array
@@ -231,11 +258,8 @@ foreach ($messages as $message) {
 > `fromContactEmail` is read from HelpSpace's `value` field on the `from_contact` response
 > object (same convention as `Ticket::$contactEmail`), with `email` kept only as a fallback.
 
-> ⚠️ **Needs verification:** HelpSpace's own Create/Get Message documentation examples show
-> no `subject` field anywhere in the message request or response schema — only tickets appear
-> to carry one. `createMessage()` still requires a non-empty `subject` client-side; this is
-> left unchanged pending live-API confirmation, since removing it could be either a genuine
-> fix or a regression.
+> `createMessage()` requires a non-empty `subject`: HelpSpace's message field tables list it as
+> required on create and return it on the message, even though the JSON examples leave it out.
 
 ### Get a message
 
@@ -257,6 +281,8 @@ $message = $this->helpspace->createMessage(101, [
     'bcc'                   => [],
     'skip_notifications'    => false,
     'send_mail_to_recipients' => true,
+    'draft'                 => false,           // true stores the message without sending it
+    // 'created_at' => '2024-01-01T10:00:00+00:00', // backdates the message; also sets skip_notifications
     // Attachments as base64 (max 5 MB combined)
     'attachments' => [
         ['name' => 'guide.pdf', 'mime_type' => 'application/pdf', 'data' => base64_encode($pdfBytes)],
@@ -356,7 +382,28 @@ foreach ($logs as $log) {
 | Exception                  | When thrown                                                               |
 |---|---|
 | `HelpSpaceApiException`    | API returned 4xx/5xx, network failure, or non-JSON response               |
-| `InvalidArgumentException` | Empty subject on `createTicket()`, empty body on `createMessage()`, or empty dates on report methods |
+| `InvalidArgumentException` | Empty subject on `createTicket()`, empty subject or body on `createMessage()`, or empty dates on report methods |
+
+For an HTTP error, `HelpSpaceApiException::getCode()` is the status, and the exception carries what
+HelpSpace answered: `apiMessage`, the per-field `validationErrors` of a `422`, and the account's
+rate-limit state (`rateLimitLimit`, `rateLimitRemaining`). HelpSpace allows 30 requests per minute
+per account, and each write counts as two:
+
+```php
+use GraystackIT\HelpSpace\Exceptions\HelpSpaceApiException;
+
+try {
+    $this->helpspace->createTicket($payload);
+} catch (HelpSpaceApiException $e) {
+    if ($e->isValidationError()) {
+        $e->validationErrors; // ['from_contact.email' => ['The email must be a valid email address.']]
+    }
+
+    if ($e->isRateLimited()) {
+        // Wait for the next minute before retrying.
+    }
+}
+```
 
 ---
 
@@ -397,8 +444,11 @@ Run the package test suite:
 
 ```bash
 composer install
-vendor/bin/pest
+HELPSPACE_API_KEY=test-key HELPSPACE_CLIENT_ID=test-client vendor/bin/pest
 ```
+
+The service provider refuses to boot without credentials, so any non-empty placeholder values
+are needed; the tests never reach the real API.
 
 ---
 
@@ -412,6 +462,7 @@ vendor/bin/pest
 | `updateTicket()`          | PATCH  | `/api/v1/tickets/{id}`                          |
 | `deleteTicket()`          | DELETE | `/api/v1/tickets/{id}`                          |
 | `listMessages()`          | GET    | `/api/v1/tickets/{id}/messages`                 |
+| `listMessagesPage()`      | GET    | `/api/v1/tickets/{id}/messages?page={n}`        |
 | `getMessage()`            | GET    | `/api/v1/tickets/{id}/messages/{messageId}`     |
 | `createMessage()`         | POST   | `/api/v1/tickets/{id}/messages`                 |
 | `getChannelsReport()`     | POST   | `/api/v1/reports/channels`                      |

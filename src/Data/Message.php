@@ -19,6 +19,12 @@ class Message
         public readonly array $attachments,
         public readonly array $inlineImages,
         public readonly string $createdAt,
+        /** Whether the message is stored as a draft rather than sent. */
+        public readonly bool $draft = false,
+        /** The sender's contact ID (`from_contact.id`). */
+        public readonly ?string $fromContactId = null,
+        /** The sender's customer ID (`from_contact.user_id`). */
+        public readonly ?string $fromContactUserId = null,
     ) {}
 
     /**
@@ -43,6 +49,9 @@ class Message
             attachments: (array) ($item['attachments'] ?? []),
             inlineImages: (array) ($item['inline_images'] ?? []),
             createdAt: (string) ($item['created_at'] ?? ''),
+            draft: (bool) ($item['draft'] ?? false),
+            fromContactId: isset($from['id']) ? (string) $from['id'] : null,
+            fromContactUserId: isset($from['user_id']) ? (string) $from['user_id'] : null,
         );
     }
 
@@ -64,6 +73,9 @@ class Message
             'attachments'      => $this->attachments,
             'inlineImages'     => $this->inlineImages,
             'createdAt'        => $this->createdAt,
+            'draft'            => $this->draft,
+            'fromContactId'    => $this->fromContactId,
+            'fromContactUserId' => $this->fromContactUserId,
         ];
     }
 }

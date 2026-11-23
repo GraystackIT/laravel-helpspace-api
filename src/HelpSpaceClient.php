@@ -38,7 +38,10 @@ class HelpSpaceClient
     /**
      * Retrieve a paginated list of tickets with optional filters.
      *
-     * @param  int      $perPage             Results per page (max 50)
+     * Walk the pages with `$page`: `meta.last_page` (or a non-null `links.next`) says
+     * whether there is another one.
+     *
+     * @param  int      $perPage             Results per page (1–50)
      * @param  string[] $statuses            Filter by status values (unassigned|open|escalated|spam|waiting|closed)
      * @param  string[] $contacts            Filter by contact email
      * @param  string[] $assignees           Filter by assignee name or ID
@@ -50,6 +53,7 @@ class HelpSpaceClient
      * @param  string[] $teams               Filter by team
      * @param  string|null $createdBetween   Date range YYYY-MM-DD/YYYY-MM-DD
      * @param  string|null $lastContactBetween  Date range YYYY-MM-DD/YYYY-MM-DD
+     * @param  int      $page                The page to fetch (1-based)
      * @return array{data: Ticket[], meta: array<string,mixed>, links: array<string,mixed>}
      *
      * @throws HelpSpaceApiException
@@ -67,8 +71,9 @@ class HelpSpaceClient
         array $teams = [],
         ?string $createdBetween = null,
         ?string $lastContactBetween = null,
+        int $page = 1,
     ): array {
-        Log::info('HelpSpace: listing tickets', ['perPage' => $perPage, 'statuses' => $statuses]);
+        Log::info('HelpSpace: listing tickets', ['perPage' => $perPage, 'page' => $page, 'statuses' => $statuses]);
 
         $data = $this->send(new ListTicketsRequest(
             perPage: $perPage,
@@ -83,6 +88,7 @@ class HelpSpaceClient
             statuses: $statuses,
             createdBetween: $createdBetween,
             lastContactBetween: $lastContactBetween,
+            page: $page,
         ));
 
         $tickets = array_map(
@@ -172,9 +178,11 @@ class HelpSpaceClient
     // -------------------------------------------------------------------------
 
     /**
-     * Retrieve all messages for a ticket.
+     * Retrieve the first page of a ticket's messages.
      *
-     * Default types returned: external, widget, forward.
+     * Default types returned: external, widget, forward. The messages collection
+     * is paginated, so a long thread does not fit on this one page — use
+     * {@see self::listMessagesPage()} to read the rest and the pagination state.
      *
      * @param  string[]  $additionalTypes  Supplement defaults: internal, error, bounce, event, ai-summary
      * @param  string[]  $types            Override returned types entirely
@@ -187,18 +195,45 @@ class HelpSpaceClient
         array $additionalTypes = [],
         array $types = [],
     ): array {
-        Log::info('HelpSpace: listing messages', ['ticketId' => $ticketId]);
+        return $this->listMessagesPage($ticketId, 1, $additionalTypes, $types)['data'];
+    }
 
-        $data = $this->send(new ListMessagesRequest($ticketId, $additionalTypes, $types));
+    /**
+     * Retrieve one page of a ticket's messages together with its pagination state.
+     *
+     * Shaped like {@see self::listTickets()}: `meta.last_page` (or a non-null
+     * `links.next`) says whether there is another page.
+     *
+     * @param  int       $ticketId         The ticket whose messages to read.
+     * @param  int       $page             The page to fetch (1-based).
+     * @param  string[]  $additionalTypes  Supplement defaults: internal, error, bounce, event, ai-summary
+     * @param  string[]  $types            Override returned types entirely
+     * @return array{data: Message[], meta: array<string,mixed>, links: array<string,mixed>}
+     *
+     * @throws HelpSpaceApiException
+     */
+    public function listMessagesPage(
+        int $ticketId,
+        int $page = 1,
+        array $additionalTypes = [],
+        array $types = [],
+    ): array {
+        Log::info('HelpSpace: listing messages', ['ticketId' => $ticketId, 'page' => $page]);
+
+        $data = $this->send(new ListMessagesRequest($ticketId, $additionalTypes, $types, $page));
 
         $messages = array_map(
             static fn (array $item) => Message::fromArray($item),
             $data['data'] ?? []
         );
 
-        Log::info('HelpSpace: messages listed', ['ticketId' => $ticketId, 'count' => count($messages)]);
+        Log::info('HelpSpace: messages listed', ['ticketId' => $ticketId, 'page' => $page, 'count' => count($messages)]);
 
-        return $messages;
+        return [
+            'data'  => $messages,
+            'meta'  => $data['meta']  ?? [],
+            'links' => $data['links'] ?? [],
+        ];
     }
 
     /**
@@ -219,14 +254,14 @@ class HelpSpaceClient
      * Create a new message on a ticket.
      *
      * @param  array<string, mixed>  $payload  Required: subject (string), from_contact (email/name), body (HTML).
-     *                                          Optional: type, to, cc, bcc, attachments (base64),
-     *                                          inline_images, skip_notifications, send_mail_to_recipients
+     *                                          Optional: type (external, forward, internal), to, cc, bcc,
+     *                                          attachments (base64), inline_images, skip_notifications,
+     *                                          send_mail_to_recipients, created_at (also sets
+     *                                          skip_notifications), draft (true stores the message
+     *                                          without sending it)
      *
-     * NEEDS VERIFICATION (2026-09-30): HelpSpace's own Create/Get Message doc examples
-     * (both complete, non-truncated) show no `subject` field anywhere in the message
-     * request or response schema — only tickets appear to carry a subject. This
-     * client-side required-subject check may be rejecting otherwise-valid calls.
-     * Left unchanged pending a live API confirmation either way.
+     * HelpSpace's message field tables list `subject` as required on create and
+     * return it on the message; only the JSON examples leave it out.
      *
      * @throws \InvalidArgumentException
      * @throws HelpSpaceApiException
@@ -360,11 +395,7 @@ class HelpSpaceClient
                 'body'   => substr($e->getResponse()->body(), 0, 500),
             ]);
 
-            throw new HelpSpaceApiException(
-                "HelpSpace API returned HTTP {$e->getResponse()->status()}",
-                $e->getResponse()->status(),
-                $e
-            );
+            throw HelpSpaceApiException::fromRequestException($e);
         } catch (\Throwable $e) {
             Log::error('HelpSpace: unexpected error', ['message' => $e->getMessage()]);
 

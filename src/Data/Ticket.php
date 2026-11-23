@@ -26,6 +26,18 @@ class Ticket
         public readonly ?string $updatedAt,
         public readonly ?string $lastContact,
         public readonly ?string $deletedAt,
+        /** The channel's display name (`channel.name`). */
+        public readonly ?string $channelName = null,
+        /** The channel's kind, e.g. `email` (`channel.type`). */
+        public readonly ?string $channelType = null,
+        /** The contact's ID (`from_contact.id`). */
+        public readonly ?string $contactId = null,
+        /** The contact's customer ID (`from_contact.user_id`). */
+        public readonly ?string $contactUserId = null,
+        /** The assigned agent's email (`assignee.email`). */
+        public readonly ?string $assigneeEmail = null,
+        /** The creating agent's email (`creator.email`). */
+        public readonly ?string $creatorEmail = null,
     ) {}
 
     /**
@@ -61,6 +73,12 @@ class Ticket
             updatedAt: isset($item['updated_at']) ? (string) $item['updated_at'] : null,
             lastContact: isset($item['last_contact']) ? (string) $item['last_contact'] : null,
             deletedAt: isset($item['deleted_at']) ? (string) $item['deleted_at'] : null,
+            channelName: isset($channel['name']) ? (string) $channel['name'] : null,
+            channelType: isset($channel['type']) ? (string) $channel['type'] : null,
+            contactId: isset($contact['id']) ? (string) $contact['id'] : null,
+            contactUserId: isset($contact['user_id']) ? (string) $contact['user_id'] : null,
+            assigneeEmail: isset($assignee['email']) ? (string) $assignee['email'] : null,
+            creatorEmail: isset($creator['email']) ? (string) $creator['email'] : null,
         );
     }
 
@@ -89,6 +107,12 @@ class Ticket
             'updatedAt'    => $this->updatedAt,
             'lastContact'  => $this->lastContact,
             'deletedAt'    => $this->deletedAt,
+            'channelName'  => $this->channelName,
+            'channelType'  => $this->channelType,
+            'contactId'    => $this->contactId,
+            'contactUserId' => $this->contactUserId,
+            'assigneeEmail' => $this->assigneeEmail,
+            'creatorEmail' => $this->creatorEmail,
         ];
     }
 }

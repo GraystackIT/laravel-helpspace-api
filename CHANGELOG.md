@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Second audit (2026-11-23), against the live documentation
+
+`documentation.helpspace.com` now answers automated requests, so this pass read the live
+Tickets, Messages, Reports, Webhook, General Response Structure and Default Rate Limit pages.
+
+#### Fixed
+- `listTickets()` can reach every page. Collections page through `?page=N`, but neither the
+  method nor `ListTicketsRequest` had a page, so only the first page (at most 50 tickets) was ever
+  reachable. New trailing `int $page = 1`, sent from the second page on. `per-page` is also kept at
+  1 or more; it was only capped at 50.
+- New `listMessagesPage(int $ticketId, int $page = 1, array $additionalTypes = [], array $types = [])`
+  returns one page of a ticket's messages as `['data' => Message[], 'meta' => …, 'links' => …]`,
+  the shape `listTickets()` has. `listMessages()` dropped `meta`/`links` and had no page, so a
+  thread longer than one page was cut off without notice. `listMessages()` is unchanged — still a
+  plain `Message[]` of the first page — and now runs through `listMessagesPage()`.
+  `ListMessagesRequest` takes a trailing `$page`. The docs give no page size for messages, so none
+  is sent.
+- The message `subject` question below is settled: HelpSpace's message field tables now list
+  `subject` as required on create and as a field of the returned message. `createMessage()` keeps
+  requiring it, and the "needs verification" notes are gone from the code and README.
+
+#### Added
+- `HelpSpaceApiException` carries what HelpSpace answered: `apiMessage`, the per-field
+  `validationErrors` of a `422`, and the rate-limit headers as `rateLimitLimit` /
+  `rateLimitRemaining` (30 requests per minute per account; writes count as two), with
+  `isValidationError()` and `isRateLimited()`. New `HelpSpaceApiException::fromRequestException()`.
+  The message and code are unchanged, and `new HelpSpaceApiException($message, $code, $previous)`
+  still works.
+- `Ticket::$channelName`, `$channelType`, `$contactId`, `$contactUserId`, `$assigneeEmail` and
+  `$creatorEmail`, from fields the ticket response already carries. Trailing optional constructor
+  parameters, so existing callers are unaffected.
+- `Message::$draft`, `$fromContactId` and `$fromContactUserId`, likewise trailing and optional.
+- `createMessage()` documents `created_at` (which also sets `skip_notifications`) and `draft`; both
+  were already passed through.
+
+#### Verified correct — no change needed
+- Reports and Webhook endpoints, request shapes and every mapped response field.
+- Every ticket filter query parameter, including `created-at-between`.
+- Ticket status values: HelpSpace's docs still contradict themselves (see below); unchanged.
+
+### First audit (2026-09-30), against user-provided doc exports
+
 Audited the Tickets endpoints against HelpSpace's own `api-tickets` documentation page
 (previously blocked by site-wide bot protection on `documentation.helpspace.com`; unblocked
 by the user providing the page content directly).
@@ -56,7 +98,8 @@ by the user providing the page content directly).
   currently a plain `string` (the enum is unused/dead code), so there's no crash risk today —
   but confirm the real wire value on a live ticket before ever parsing `$status` into
   `TicketStatus`.
-- **Message `subject` field may not exist at all.** HelpSpace's Create/Get Message doc
+- **Message `subject` field may not exist at all** *(resolved 2026-11-23, see above: the field
+  tables now list it as required)*. HelpSpace's Create/Get Message doc
   examples (both complete, non-truncated) show no `subject` field anywhere in the message
   request or response schema — apparently only tickets carry one. But the package's earlier
   `[1.0.1]` release explicitly added subject-mapping based on a confirmed API observation at

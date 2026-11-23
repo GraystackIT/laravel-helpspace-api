@@ -90,3 +90,23 @@ it('serializes to array via toArray', function (): void {
         ->and($arr['id'])->toBe(40)
         ->and($arr['type'])->toBe('forward');
 });
+
+it('maps the draft flag and the sender ids', function (): void {
+    $message = Message::fromArray([
+        'id'           => 17916,
+        'from_contact' => ['id' => 1013, 'user_id' => 1018, 'name' => 'My Custom Name', 'value' => 'someone@example.com', 'type' => 'email'],
+        'type'         => 'external',
+        'body'         => '<p>Hi</p>',
+        'draft'        => true,
+        'created_at'   => '2022-04-21T10:24:40+00:00',
+    ]);
+
+    expect($message->draft)->toBeTrue()
+        ->and($message->fromContactId)->toBe('1013')
+        ->and($message->fromContactUserId)->toBe('1018')
+        ->and($message->toArray())->toHaveKeys(['draft', 'fromContactId', 'fromContactUserId']);
+});
+
+it('treats a message without a draft flag as sent', function (): void {
+    expect(Message::fromArray(['id' => 1])->draft)->toBeFalse();
+});

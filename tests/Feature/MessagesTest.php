@@ -171,3 +171,49 @@ it('throws HelpSpaceApiException on 401 for listMessages', function (): void {
     expect(fn () => (new HelpSpaceClient($connector))->listMessages(1))
         ->toThrow(HelpSpaceApiException::class);
 });
+
+// ─── listMessagesPage() (1.1.0) ────────────────────────────────────────────
+
+it('returns one page of messages with its pagination state', function (): void {
+    $mockClient = new MockClient([
+        ListMessagesRequest::class => MockResponse::make([
+            'data'  => [['id' => 7, 'subject' => 'Re: Order', 'type' => 'external', 'body' => '<p>Hi</p>']],
+            'links' => ['first' => '?page=1', 'last' => '?page=3', 'prev' => '?page=1', 'next' => '?page=3'],
+            'meta'  => ['current_page' => 2, 'last_page' => 3, 'per_page' => 50, 'total' => 120],
+        ], 200),
+    ]);
+
+    $connector = app(HelpSpaceConnector::class);
+    $connector->withMockClient($mockClient);
+
+    $page = (new HelpSpaceClient($connector))->listMessagesPage(42, page: 2, additionalTypes: ['internal']);
+
+    $query = (new ReflectionMethod($mockClient->getLastRequest(), 'defaultQuery'))->invoke($mockClient->getLastRequest());
+
+    expect($page['data'])->toHaveCount(1)
+        ->and($page['data'][0])->toBeInstanceOf(Message::class)
+        ->and($page['meta']['last_page'])->toBe(3)
+        ->and($page['links']['next'])->toBe('?page=3')
+        ->and($query['page'])->toBe(2)
+        ->and($query['additional-types'])->toBe(['internal']);
+});
+
+it('keeps listMessages a plain list of the first page', function (): void {
+    $mockClient = new MockClient([
+        ListMessagesRequest::class => MockResponse::make([
+            'data' => [['id' => 7, 'body' => '<p>Hi</p>']],
+            'meta' => ['current_page' => 1, 'last_page' => 2],
+        ], 200),
+    ]);
+
+    $connector = app(HelpSpaceConnector::class);
+    $connector->withMockClient($mockClient);
+
+    $messages = (new HelpSpaceClient($connector))->listMessages(42);
+
+    $query = (new ReflectionMethod($mockClient->getLastRequest(), 'defaultQuery'))->invoke($mockClient->getLastRequest());
+
+    expect($messages)->toHaveCount(1)
+        ->and($messages[0])->toBeInstanceOf(Message::class)
+        ->and($query)->not->toHaveKey('page');
+});

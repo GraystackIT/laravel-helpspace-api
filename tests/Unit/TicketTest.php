@@ -123,3 +123,24 @@ it('casts id to int', function (): void {
 
     expect($ticket->id)->toBe(42);
 });
+
+it('maps the channel, contact, assignee and creator details of the documented response', function (): void {
+    $ticket = Ticket::fromArray([
+        'id'           => 2517,
+        'subject'      => 'New Ticket name',
+        'channel'      => ['id' => 1, 'name' => 'Support', 'value' => 'support@your-domain.com', 'type' => 'email'],
+        'from_contact' => ['id' => 1008, 'user_id' => 950, 'name' => 'Sam Smith', 'value' => 'sam@smith.com', 'type' => 'email'],
+        'status'       => 'closed',
+        'assignee'     => ['id' => 3, 'name' => 'Joe', 'email' => 'joe@your-domain.com'],
+        'creator'      => ['id' => 3, 'name' => 'Main Account', 'email' => 'support@your-domain.com'],
+        'created_at'   => '2021-09-10T23:06:50+00:00',
+    ]);
+
+    expect($ticket->channelName)->toBe('Support')
+        ->and($ticket->channelType)->toBe('email')
+        ->and($ticket->contactId)->toBe('1008')
+        ->and($ticket->contactUserId)->toBe('950')
+        ->and($ticket->assigneeEmail)->toBe('joe@your-domain.com')
+        ->and($ticket->creatorEmail)->toBe('support@your-domain.com')
+        ->and($ticket->toArray())->toHaveKeys(['channelName', 'channelType', 'contactId', 'contactUserId', 'assigneeEmail', 'creatorEmail']);
+});

@@ -24,6 +24,7 @@ class ListTicketsRequest extends Request
         private readonly array $statuses = [],
         private readonly ?string $createdBetween = null,
         private readonly ?string $lastContactBetween = null,
+        private readonly int $page = 1,
     ) {}
 
     public function resolveEndpoint(): string
@@ -31,11 +32,23 @@ class ListTicketsRequest extends Request
         return '/api/v1/tickets';
     }
 
+    /**
+     * The filter, page size and page of the list.
+     *
+     * `per-page` is kept within the documented 1–50. `page` is sent from the
+     * second page on; the first page is the API's default.
+     *
+     * @return array<string, mixed>
+     */
     protected function defaultQuery(): array
     {
         $query = [
-            'per-page' => min($this->perPage, 50),
+            'per-page' => max(1, min($this->perPage, 50)),
         ];
+
+        if ($this->page > 1) {
+            $query['page'] = $this->page;
+        }
 
         if (! empty($this->subjects)) {
             $query['subject'] = $this->subjects;
